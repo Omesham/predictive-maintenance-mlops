@@ -77,7 +77,50 @@ def validateDataset(df: pd.DataFrame, isRul: bool, dataset_name: str = "dataset"
     # Return the validation result.
     return is_valid
 
+## Validate Remaining Useful Life (RUL) values
+def validateRUL(df: pd.DataFrame, isTest: bool = False, df_rul: pd.DataFrame | None = None) -> bool:
+    """Validate calculated RUL labels for training or test datasets."""
 
+    logger.info("Started RUL validation")
+
+    # Check for empty datasets and missing required columns.
+    if df.empty or not {"unit_number", "time_in_cycles", "RUL"}.issubset(df.columns):
+        logger.error("Dataset is empty or required columns are missing")
+        return False
+
+    # Check for missing or negative RUL values.
+    if df["RUL"].isna().any() or (df["RUL"] < 0).any():
+        logger.error("Missing or negative RUL values detected")
+        return False
+
+    # Get the final RUL value for each engine.
+    last_rul = df.sort_values("time_in_cycles").groupby("unit_number")["RUL"].last()
+
+    if not isTest:
+        # Training engines must have RUL = 0 at their final cycle.
+        if (last_rul != 0).any():
+            logger.error("Training engines contain invalid final RUL values")
+            return False
+
+    else:
+        # Test validation requires the original corresponding RUL file.
+        if df_rul is None or df_rul.empty or df_rul["RUL"].isna().any():
+            logger.error("Missing or invalid test RUL reference data")
+            return False
+
+        # Match the provided RUL values to engine IDs.
+        expected_rul = pd.Series(df_rul["RUL"].to_numpy(), index=range(1, len(df_rul) + 1))
+
+        # Check engine alignment and compare final RUL values.
+        if not last_rul.index.equals(expected_rul.index) or not last_rul.equals(expected_rul.rename("RUL")):
+            logger.error("Test RUL values do not match the provided RUL labels")
+            return False
+
+    logger.info("RUL validation passed successfully")
+    return True
+        
+    
+    
 def main() -> int:
     """
     Load and validate NASA C-MAPSS datasets.
