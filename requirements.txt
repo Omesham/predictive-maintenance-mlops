@@ -3,3 +3,4 @@ pandas
 PyYAML
 pytest
 pytest-xdist
+pyarrow
