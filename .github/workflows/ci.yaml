@@ -1,0 +1,40 @@
+
+name: Python CI
+
+# Run CI when code is pushed to dev or proposed for main.
+on:
+  push:
+    branches: [development]
+  pull_request:
+    branches: [main]
+
+# The workflow only needs permission to read repository files.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Download repository code.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Match our project's Python version.
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      # Install application and testing dependencies.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt          
+
+      # Make Python modules inside src importable.
+      - name: Run unit and integration tests
+        env:
+          PYTHONPATH: src
+        run: python -m pytest tests/ -n 3 -v
