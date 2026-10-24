@@ -1,5 +1,5 @@
 requests
 pandas
-yaml
+PyYAML
 pytest
 pytest-xdist
