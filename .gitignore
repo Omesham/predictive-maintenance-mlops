@@ -1,9 +1,9 @@
 # Byte-compiled / optimized / DLL files
 .env
-# Ignore datasets, but allow DVC tracking files.
-data/*
-!data/.gitkeep
-!data/*.dvc
+# Ignore actual datasets, not DVC metadata.
+data/raw/
+data/processed/
+data/curated/
 venv/
 __pycache__/
 *.py[codz]
