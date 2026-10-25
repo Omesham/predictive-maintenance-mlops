@@ -7,3 +7,4 @@ pyarrow
 sqlalchemy
 psycopg[binary]
 python-dotenv
+dvc

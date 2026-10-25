@@ -2,8 +2,6 @@ import pandas as pd
 from load_database import loadToPostgres
 import pytest
 from sqlalchemy.exc import IntegrityError
-import etl_pipeline
-
 
 """Integration tests for PostgreSQL database connections."""
 
