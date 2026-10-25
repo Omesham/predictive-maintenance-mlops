@@ -1,14 +1,13 @@
 
 name: Python CI
 
-# Run CI when code is pushed to dev or proposed for main.
+# Run tests whenever development changes or a pull request targets main.
 on:
   push:
     branches: [development]
   pull_request:
     branches: [main]
 
-# The workflow only needs permission to read repository files.
 permissions:
   contents: read
 
@@ -16,25 +15,61 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # Test-only credentials. Never use production credentials here.
+    env:
+      PYTHONPATH: src
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_test_password
+      POSTGRES_DB: predictive_maintenance_test
+
+    # Start PostgreSQL alongside the GitHub Actions runner.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_test_password
+          POSTGRES_DB: predictive_maintenance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d predictive_maintenance_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
-      # Download repository code.
+      # Download our repository.
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      # Match our project's Python version.
+      # Install Python.
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
-      # Install application and testing dependencies.
+      # Install project dependencies.
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt          
+          pip install -r requirements.txt
 
-      # Make Python modules inside src importable.
-      - name: Run unit and integration tests
-        env:
-          PYTHONPATH: src
+      # Create the engine_cycles table in the CI test database.
+      - name: Initialize PostgreSQL schema
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from database import getEngine
+
+          engine = getEngine()
+          try:
+              with engine.begin() as connection:
+                  connection.exec_driver_sql(Path("sql/schema.sql").read_text(encoding="utf-8"))
+          finally:
+              engine.dispose()
+          PY
+
+      # Run all unit and integration tests.
+      - name: Run tests
         run: python -m pytest tests/ -n 3 -v

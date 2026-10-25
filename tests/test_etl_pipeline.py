@@ -2,7 +2,7 @@
 """Automated tests for the predictive maintenance ETL pipeline."""
 
 from unittest.mock import Mock
-
+import etl_pipeline
 import pandas as pd
 import pytest
 
@@ -43,6 +43,8 @@ def etl_environment(tmp_path, monkeypatch):
     monkeypatch.setattr("etl_pipeline.PROJECT_ROOT", tmp_path)
     monkeypatch.setattr("etl_pipeline.RAW_DATA_PATH", tmp_path / "data" / "raw" / "CMAPSSData.zip")
     monkeypatch.setattr("etl_pipeline.PARQUET_PATH", tmp_path / "data" / "curated")
+    # Prevent the ETL test from connecting to PostgreSQL.
+    monkeypatch.setattr("etl_pipeline.loadAllDatasets", Mock(return_value=0))
 
     # Prevent network requests and unnecessary ZIP extraction.
     download_mock = Mock()
@@ -82,7 +84,7 @@ def test_run_etl_success(etl_environment, tmp_path):
     dataset_path, download_mock, extract_mock = etl_environment
 
     runETL()
-
+    
     # Verify the pipeline requests the dataset but skips extraction.
     download_mock.assert_called_once()
     extract_mock.assert_not_called()
@@ -117,7 +119,11 @@ def test_run_etl_extracts_missing_files(etl_environment, monkeypatch):
     extract_mock.side_effect = lambda zip_path, output_path: create_nasa_file(missing_file)
 
     runETL()
-
+    # Confirm PostgreSQL loading was requested exactly once.
+    # Verify PostgreSQL loading was called exactly once.
+    load_mock = etl_pipeline.loadAllDatasets
+    assert isinstance(load_mock, Mock)
+    load_mock.assert_called_once()
     extract_mock.assert_called_once()
     assert missing_file.exists()
 

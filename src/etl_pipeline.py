@@ -11,6 +11,7 @@ from logger import configureLogging, PROJECT_ROOT
 from process_data import processDataset
 from transform_data import transformDatasets
 from validate_data import validateDataset
+from load_database import loadAllDatasets
 
 logger = configureLogging()
 
@@ -85,6 +86,10 @@ def runETL() -> None:
     saveAsParquet(test_datasets, PARQUET_PATH / "test")
 
     logger.info(f"ETL completed successfully. Training: {len(train_datasets)}, Testing: {len(test_datasets)}")
+    
+    # Load curated datasets into PostgreSQL after Parquet persistence succeeds.
+    inserted_rows = loadAllDatasets()
+    logger.info(f"PostgreSQL loading completed. New records inserted: {inserted_rows}")
 
 
 def main() -> int:
