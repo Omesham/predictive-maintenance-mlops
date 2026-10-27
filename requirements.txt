@@ -16,3 +16,6 @@ dagshub
 scikit-learn
 xgboost
 numpy
+fastapi
+uvicorn[standard]
+python-multipart
