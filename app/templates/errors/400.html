@@ -1,0 +1,15 @@
+
+{% extends "errors/base.html" %}
+
+{% block title %}Bad Request{% endblock %}
+
+{% block content %}
+    <p class="error-code" aria-label="Error 400">400</p>
+
+    <h1>Bad Request</h1>
+
+    <p>
+        We couldn't process your request because some information
+        was invalid or missing. Please review your input and try again.
+    </p>
+{% endblock %}

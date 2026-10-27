@@ -1,0 +1,15 @@
+
+{% extends "errors/base.html" %}
+
+{% block title %}File Too Large{% endblock %}
+
+{% block content %}
+    <p class="error-code" aria-label="Error 413">413</p>
+
+    <h1>File Too Large</h1>
+
+    <p>
+        The uploaded file exceeds the maximum permitted size.
+        Please select a smaller CSV file and try again.
+    </p>
+{% endblock %}

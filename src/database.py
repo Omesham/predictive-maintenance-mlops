@@ -26,7 +26,7 @@ def getEngine():
         drivername="postgresql+psycopg",
         username=username,
         password=password,
-        host="localhost",
+        host="127.0.0.1",
         port=5432,
         database=database
     )

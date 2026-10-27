@@ -17,7 +17,7 @@ jobs:
 
     # Test-only credentials. Never use production credentials here.
     env:
-      PYTHONPATH: src
+      PYTHONPATH: ".:src"
       POSTGRES_USER: ci_user
       POSTGRES_PASSWORD: ci_test_password
       POSTGRES_DB: predictive_maintenance_test
@@ -70,6 +70,10 @@ jobs:
               engine.dispose()
           PY
 
-      # Run all unit and integration tests.
-      - name: Run tests
-        run: python -m pytest tests/ -n 3 -v
+      # Run backend unit and integration tests.
+      - name: Run backend tests
+        run: python -m pytest tests/backend/ -v
+
+      # Run existing project tests.
+      - name: Run existing tests
+        run: python -m pytest tests/ --ignore=tests/backend -v
