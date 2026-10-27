@@ -8,3 +8,5 @@ sqlalchemy
 psycopg[binary]
 python-dotenv
 dvc
+ipykernel
+matplotlib
