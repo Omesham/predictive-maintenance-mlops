@@ -9,4 +9,10 @@ psycopg[binary]
 python-dotenv
 dvc
 ipykernel
+joblib
 matplotlib
+mlflow
+dagshub
+scikit-learn
+xgboost
+numpy
