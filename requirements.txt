@@ -21,3 +21,5 @@ uvicorn[standard]
 python-multipart
 jinja2
 httpx
+bandit 
+pip-audit
