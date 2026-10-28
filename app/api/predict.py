@@ -5,8 +5,7 @@ import mlflow
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
-# Configure the remote MLflow tracking server hosted on DagsHub.
-dagshub.init(repo_owner="Omesham", repo_name="predictive-maintenance-mlops", mlflow=True)
+
 
 router = APIRouter()
 logger = logging.getLogger("predictive_maintenance")
@@ -20,9 +19,9 @@ _model = None
 
 def get_model():
     global _model
-
-    # Load the trained model only when it is first needed.
     if _model is None:
+        # Configure DagsHub only when the model needs loading.
+        dagshub.init(repo_owner="Omesham", repo_name="predictive-maintenance-mlops", mlflow=True)
         _model = mlflow.pyfunc.load_model(MODEL_URI)
 
     return _model
