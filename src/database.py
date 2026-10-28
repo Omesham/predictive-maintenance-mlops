@@ -1,47 +1,48 @@
+import logging
 import os
-from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import URL
-from logger import configureLogging, PROJECT_ROOT
 
-logger= configureLogging()
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Use the existing logger without configuring it again.
+logger = logging.getLogger("predictive_maintenance")
+
 
 def getEngine():
-    """Create a PostgreSQL database engine using environment variables."""
-    logger.info("Creating database engine...")
-    # Load database credentials from the project's .env file.
-    load_dotenv(PROJECT_ROOT / ".env")
+    """Create a PostgreSQL engine using environment variables."""
 
-    # Retrieve the database connection settings.
+    # Load local credentials. Production can use environment variables.
+    # Use local .env credentials during development and testing.
+    # Preserve deployment environment variables in production.
+    load_dotenv(PROJECT_ROOT / ".env", override=os.getenv("APP_ENV", "development").lower() != "production")
+
     username = os.getenv("POSTGRES_USER")
     password = os.getenv("POSTGRES_PASSWORD")
     database = os.getenv("POSTGRES_DB")
-    
-    # Verify that all required database credentials are available.
+
+    # Allow database location to differ between development and AWS.
+    host = os.getenv("POSTGRES_HOST", "127.0.0.1")
+    port = int(os.getenv("POSTGRES_PORT", "5432"))
+
     if not all([username, password, database]):
         raise ValueError("Missing PostgreSQL environment variables")
 
-    # Build the database URL without exposing credentials in logs.
+    # Construct the connection URL without exposing credentials.
     url = URL.create(
         drivername="postgresql+psycopg",
         username=username,
         password=password,
-        host="127.0.0.1",
-        port=5432,
+        host=host,
+        port=port,
         database=database
     )
 
-    logger.info("PostgreSQL connection URL configured")
-    # Create the SQLAlchemy engine.
+    # Create a connection pool and check stale connections before reuse.
     engine = create_engine(url, pool_pre_ping=True)
 
-    # Verify that PostgreSQL is reachable.
-    try:
-        with engine.connect() as connection:
-            logger.info("Successfully connected to PostgreSQL")
-    except Exception:
-        logger.exception("PostgreSQL connection failed")
-        engine.dispose()
-        raise
-
+    logger.info("PostgreSQL engine initialized")
     return engine

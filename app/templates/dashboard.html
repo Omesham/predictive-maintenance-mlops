@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Maintenance Dashboard</title>
+    <link rel="stylesheet" href="/styles/dashboard.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <header>
+        <h1>Predictive Maintenance Dashboard</h1>
+        <p>Monitor equipment health and predict remaining useful life.</p>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+        <section aria-labelledby="overview-heading">
+            <h2 id="overview-heading">Equipment Overview</h2>
+            <p>Equipment health metrics and predictions will appear here.</p>
+        </section>
+
+        <section aria-labelledby="prediction-heading">
+    <h2 id="prediction-heading">ML Predictions</h2>
+    <p>Upload engine data to estimate remaining useful life.</p>
+
+    <form id="prediction-form" enctype="multipart/form-data">
+        <label for="csv-file">Select engine data (CSV)</label>
+        <input
+            type="file"
+            id="csv-file"
+            name="file"
+            accept=".csv,text/csv"
+            required
+            aria-describedby="upload-help"
+        >
+
+        <p id="upload-help">
+            Upload a CSV containing the 29 required model features.
+            Maximum file size: 5 MB. Maximum rows: 1,000.
+        </p>
+
+        <button type="submit" id="predict-button">
+            Generate Predictions
+        </button>
+    </form>
+
+    <!-- Announce upload progress and errors to screen readers. -->
+    <p id="upload-status" role="status" aria-live="polite"></p>
+
+    <!-- Hidden until prediction results are ready. -->
+    <a id="download-link" href="#" download="rul_predictions.csv" hidden>
+        Download Prediction Results
+    </a>
+</section>
+    </main>
+
+    <script src="/scripts/dashboard.js" defer></script>
+</body>
+</html>
