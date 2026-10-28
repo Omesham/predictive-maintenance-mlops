@@ -55,7 +55,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Create the engine_cycles table in the CI test database.
+      # Create the required tables in the CI test database.
       - name: Initialize PostgreSQL schema
         run: |
           python - <<'PY'
@@ -66,6 +66,7 @@ jobs:
           try:
               with engine.begin() as connection:
                   connection.exec_driver_sql(Path("sql/schema.sql").read_text(encoding="utf-8"))
+                  connection.exec_driver_sql(Path("sql/application_logs.sql").read_text(encoding="utf-8"))
           finally:
               engine.dispose()
           PY
