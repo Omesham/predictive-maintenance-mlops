@@ -1,0 +1,4 @@
+approach,val_mae,val_rmse
+Tuned combined XGBoost,32.391212463378906,46.342699014549474
+Previous combined model,32.918,46.383
+Four individual models,32.941,46.903
