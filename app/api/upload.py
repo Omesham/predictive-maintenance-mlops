@@ -35,7 +35,40 @@ async def upload_csv(file: UploadFile = File(...)):
 
         if data.empty or len(data) > MAX_ROWS:
             raise HTTPException(status_code=422,detail="CSV must contain between 1 and 1,000 data rows.")
+        # Require engine identity and operating cycle for dashboard analytics.
+        required_columns = ["unit_number", "time_cycles"]
 
+        missing_columns = [
+            column for column in required_columns
+            if column not in data.columns
+        ]
+
+        if missing_columns:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "missing_columns": missing_columns
+                }
+            )
+
+        # Validate engine IDs and operating cycles.
+        for column in required_columns:
+            values = pd.to_numeric(data[column], errors="coerce")
+
+            if values.isna().any() or (values <= 0).any() or (values % 1 != 0).any():
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Column '{column}' must contain positive whole numbers."
+                )
+
+            data[column] = values.astype("int64")
+
+        # Prevent duplicate cycles for the same engine.
+        if data.duplicated(subset=["unit_number", "time_cycles"]).any():
+            raise HTTPException(
+                status_code=422,
+                detail="Each engine must have unique operating cycles."
+            )
         # Retrieve the input schema from the registered MLflow model.
         model = get_model()
         schema = model.metadata.get_input_schema()
@@ -50,7 +83,10 @@ async def upload_csv(file: UploadFile = File(...)):
         if missing:
             raise HTTPException(status_code=422,detail={"missing_columns": missing})
 
-        # Select features in the exact order expected by the model.
+        # Preserve the original CSV, including engine IDs and operating cycles.
+        original_data = data.copy()
+
+        # Select only the features required by the ML model.
         data = data[feature_names].copy()
 
         # Validate numeric values and convert columns to model-required types.
@@ -79,12 +115,13 @@ async def upload_csv(file: UploadFile = File(...)):
 
         logger.info("CSV prediction completed: filename=%s, rows=%s", file.filename,len(data))
         
-        # Add the model's predictions as a new column.
-        data["predicted_rul"] = predictions
+        # Add predictions to the original CSV so engine IDs,
+        # operating cycles, and sensor readings are preserved.
+        original_data["predicted_rul"] = predictions
 
         # Convert the DataFrame into CSV text in memory.
         csv_buffer = StringIO()
-        data.to_csv(csv_buffer, index=False)
+        original_data.to_csv(csv_buffer, index=False)
 
         # Move the buffer position back to the beginning.
         csv_buffer.seek(0)

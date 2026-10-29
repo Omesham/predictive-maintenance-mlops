@@ -1,0 +1,17 @@
+/* Additional styling for Chart.js panels. Keep your existing dashboard.css. */
+.metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1rem; margin:1.25rem 0; }
+.metric-card { background:#f8fafc; border:1px solid #dbe3ed; border-radius:12px; padding:1rem; }
+.metric-card h3 { font-size:.95rem; margin:0 0 .65rem; color:#475569; }
+.metric-card strong { display:block; font-size:1.8rem; color:#0f172a; }
+.metric-card small { color:#64748b; }
+.chart-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:1.25rem 0 2rem; }
+.chart-panel { min-width:0; border:1px solid #dbe3ed; background:#fff; border-radius:12px; padding:1.25rem; }
+.chart-panel h3 { margin:0 0 .5rem; font-size:1.1rem; }
+.chart-panel p { color:#64748b; font-size:.9rem; min-height:2.5rem; }
+.chart-panel label { margin-right:.5rem; }
+.chart-panel select { padding:.35rem; max-width:100%; }
+.chart-wrap { position:relative; height:280px; width:100%; }
+[hidden] {
+    display: none !important;
+}
+@media (max-width:800px) { .chart-grid { grid-template-columns:1fr; } }
