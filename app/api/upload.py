@@ -3,7 +3,6 @@ from io import BytesIO, StringIO
 from fastapi.responses import StreamingResponse
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile
-
 from app.api.predict import get_model, predict_rul
 
 router = APIRouter()
@@ -141,3 +140,94 @@ async def upload_csv(file: UploadFile = File(...)):
 
     finally:
         await file.close()
+        
+        
+
+
+@router.get("/sample-csv")
+def download_sample_csv():
+    try:
+        model = get_model()
+        schema = model.metadata.get_input_schema()
+
+        if schema is None or len(schema.inputs) != 29:
+            raise HTTPException(
+                status_code=503,
+                detail="Model input schema is unavailable."
+            )
+
+        feature_names = [column.name for column in schema.inputs]
+
+        # Use deterministic values for a reproducible demo dataset.
+        rows = []
+
+        for engine_id in range(1, 4):
+            for cycle in [20, 40, 60, 80, 100]:
+                row = {
+                    "unit_number": engine_id,
+                    "time_cycles": cycle
+                }
+
+                for column in schema.inputs:
+                    name = column.name
+
+                    if name in ("time_in_cycles", "time_cycles"):
+                        value = cycle
+                    elif name == "unit_number":
+                        value = engine_id
+                    elif name == "setting_1":
+                        value = round(0.001 * engine_id, 4)
+                    elif name == "setting_2":
+                        value = round(0.0002 * engine_id, 4)
+                    elif name == "setting_3":
+                        value = 100.0
+                    elif name.startswith("sensor_"):
+                        # Illustrative sensor values, not real measurements.
+                        sensor_number = int(name.removeprefix("sensor_measurement"))
+                        value = round(
+                            10 + sensor_number * 2
+                            + cycle * 0.03
+                            + engine_id * 0.5,
+                            4
+                        )
+                    else:
+                        value = 0.0
+
+                    # Match the data types expected by MLflow.
+                    if column.type.name in ("long", "integer"):
+                        value = int(value)
+                    elif column.type.name in ("double", "float"):
+                        value = float(value)
+
+                    row[name] = value
+
+                rows.append(row)
+
+        columns = list(dict.fromkeys(
+            ["unit_number", "time_cycles"] + feature_names
+        ))
+
+        sample_data = pd.DataFrame(rows, columns=columns)
+
+        output = StringIO()
+        sample_data.to_csv(output, index=False)
+        output.seek(0)
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition":
+                    'attachment; filename="sample_engine_data.csv"'
+            }
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        logger.exception("Unable to generate sample CSV")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to generate sample CSV."
+        )

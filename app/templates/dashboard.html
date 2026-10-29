@@ -59,8 +59,24 @@
             <form id="prediction-form" enctype="multipart/form-data">
                 <label for="csv-file">Select engine data (CSV)</label>
                 <input type="file" id="csv-file" name="file" accept=".csv,text/csv" required aria-describedby="upload-help">
-                <p id="upload-help">Upload a CSV containing the 29 required model features. Maximum file size: 5 MB. Maximum rows: 1,000.</p>
-                <button type="submit" id="predict-button">Generate Predictions</button>
+                
+<p id="upload-help">
+    Upload a CSV containing the 29 required model features.
+    Maximum file size: 5 MB. Maximum rows: 1,000.
+</p>
+
+<p>
+    New to the dashboard?
+    <a href="/api/sample-csv" download="sample_engine_data.csv">
+    Download Sample CSV
+</a>
+    to see the required columns.
+</p>
+
+<button type="submit" id="predict-button">
+    Generate Predictions
+</button>
+
             </form>
             <p id="upload-status" role="status" aria-live="polite"></p>
             <a id="download-link" href="#" download="rul_predictions.csv" hidden>Download Prediction Results</a>
