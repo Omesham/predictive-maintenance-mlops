@@ -42,10 +42,13 @@ form.addEventListener("submit", async (event) => {
 
         if (!response.ok) {
             const error = await response.json();
+            const missingColumns = error.detail?.missing_columns;
             throw new Error(
-                typeof error.detail === "string"
-                    ? error.detail
-                    : "Unable to process the uploaded CSV."
+                Array.isArray(missingColumns)
+                    ? `This CSV is missing required sensor columns: ${missingColumns.join(", ")}. Please upload engine sensor data with all required columns.`
+                    : typeof error.detail === "string"
+                        ? error.detail
+                        : "Unable to process the uploaded CSV."
             );
         }
 
