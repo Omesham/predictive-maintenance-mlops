@@ -1,0 +1,233 @@
+import logging
+from io import BytesIO, StringIO
+from fastapi.responses import StreamingResponse
+import pandas as pd
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from app.api.predict import get_model, predict_rul
+
+router = APIRouter()
+logger = logging.getLogger("predictive_maintenance")
+
+# Limit uploads to 5 MB and 1,000 rows to protect the public API.
+MAX_FILE_SIZE = 5 * 1024 * 1024
+MAX_ROWS = 1000
+
+
+@router.post("/upload")
+async def upload_csv(file: UploadFile = File(...)):
+    try:
+        # Accept CSV files only.
+        if not file.filename or not file.filename.lower().endswith(".csv"):
+            raise HTTPException(status_code=400,detail="Only CSV files are supported.")
+
+        # Read a limited number of bytes to prevent oversized uploads.
+        contents = await file.read(MAX_FILE_SIZE + 1)
+
+        if len(contents) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413,detail="CSV file exceeds the 5 MB limit.")
+
+        # Parse the uploaded CSV into a DataFrame.
+        try:
+            data = pd.read_csv(BytesIO(contents))
+        except (pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeError):
+            raise HTTPException(status_code=400,detail="The uploaded file is not a valid CSV.")
+
+        if data.empty or len(data) > MAX_ROWS:
+            raise HTTPException(status_code=422,detail="CSV must contain between 1 and 1,000 data rows.")
+        # Require engine identity and operating cycle for dashboard analytics.
+        required_columns = ["unit_number", "time_cycles"]
+
+        missing_columns = [
+            column for column in required_columns
+            if column not in data.columns
+        ]
+
+        if missing_columns:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "missing_columns": missing_columns
+                }
+            )
+
+        # Validate engine IDs and operating cycles.
+        for column in required_columns:
+            values = pd.to_numeric(data[column], errors="coerce")
+
+            if values.isna().any() or (values <= 0).any() or (values % 1 != 0).any():
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Column '{column}' must contain positive whole numbers."
+                )
+
+            data[column] = values.astype("int64")
+
+        # Prevent duplicate cycles for the same engine.
+        if data.duplicated(subset=["unit_number", "time_cycles"]).any():
+            raise HTTPException(
+                status_code=422,
+                detail="Each engine must have unique operating cycles."
+            )
+        # Retrieve the input schema from the registered MLflow model.
+        model = get_model()
+        schema = model.metadata.get_input_schema()
+
+        if schema is None:
+            raise HTTPException(status_code=503,detail="Model input schema is unavailable.")
+
+        # Check that all required model features are present.
+        feature_names = [column.name for column in schema.inputs]
+        missing = [name for name in feature_names if name not in data.columns]
+
+        if missing:
+            raise HTTPException(status_code=422,detail={"missing_columns": missing})
+
+        # Preserve the original CSV, including engine IDs and operating cycles.
+        original_data = data.copy()
+
+        # Select only the features required by the ML model.
+        data = data[feature_names].copy()
+
+        # Validate numeric values and convert columns to model-required types.
+        for column in schema.inputs:
+            name = column.name
+
+            try:
+                values = pd.to_numeric(data[name], errors="raise")
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=422,detail=f"Column '{name}' must contain numeric values.")
+
+            if not values.notna().all():
+                raise HTTPException(status_code=422,detail=f"Column '{name}' contains missing values.")
+
+            if column.type.name == "long":
+                if not (values % 1 == 0).all():
+                    raise HTTPException(status_code=422,detail=f"Column '{name}' must contain whole numbers.")
+
+                data[name] = values.astype("int64")
+
+            elif column.type.name == "double":
+                data[name] = values.astype("float64")
+
+        # Run batch inference using the registered XGBoost model.
+        predictions = predict_rul(data)
+
+        logger.info("CSV prediction completed: filename=%s, rows=%s", file.filename,len(data))
+        
+        # Add predictions to the original CSV so engine IDs,
+        # operating cycles, and sensor readings are preserved.
+        original_data["predicted_rul"] = predictions
+
+        # Convert the DataFrame into CSV text in memory.
+        csv_buffer = StringIO()
+        original_data.to_csv(csv_buffer, index=False)
+
+        # Move the buffer position back to the beginning.
+        csv_buffer.seek(0)
+
+        # Return the CSV as a downloadable file.
+        return StreamingResponse(
+            iter([csv_buffer.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="rul_predictions.csv"'})
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        logger.exception("Unexpected CSV upload error")
+        raise HTTPException(status_code=500, detail="Unable to process the upload.")
+
+    finally:
+        await file.close()
+        
+        
+
+
+@router.get("/sample-csv")
+def download_sample_csv():
+    try:
+        model = get_model()
+        schema = model.metadata.get_input_schema()
+
+        if schema is None or len(schema.inputs) != 29:
+            raise HTTPException(
+                status_code=503,
+                detail="Model input schema is unavailable."
+            )
+
+        feature_names = [column.name for column in schema.inputs]
+
+        # Use deterministic values for a reproducible demo dataset.
+        rows = []
+
+        for engine_id in range(1, 4):
+            for cycle in [20, 40, 60, 80, 100]:
+                row = {
+                    "unit_number": engine_id,
+                    "time_cycles": cycle
+                }
+
+                for column in schema.inputs:
+                    name = column.name
+
+                    if name in ("time_in_cycles", "time_cycles"):
+                        value = cycle
+                    elif name == "unit_number":
+                        value = engine_id
+                    elif name == "setting_1":
+                        value = round(0.001 * engine_id, 4)
+                    elif name == "setting_2":
+                        value = round(0.0002 * engine_id, 4)
+                    elif name == "setting_3":
+                        value = 100.0
+                    elif name.startswith("sensor_"):
+                        # Illustrative sensor values, not real measurements.
+                        sensor_number = int(name.removeprefix("sensor_measurement"))
+                        value = round(
+                            10 + sensor_number * 2
+                            + cycle * 0.03
+                            + engine_id * 0.5,
+                            4
+                        )
+                    else:
+                        value = 0.0
+
+                    # Match the data types expected by MLflow.
+                    if column.type.name in ("long", "integer"):
+                        value = int(value)
+                    elif column.type.name in ("double", "float"):
+                        value = float(value)
+
+                    row[name] = value
+
+                rows.append(row)
+
+        columns = list(dict.fromkeys(
+            ["unit_number", "time_cycles"] + feature_names
+        ))
+
+        sample_data = pd.DataFrame(rows, columns=columns)
+
+        output = StringIO()
+        sample_data.to_csv(output, index=False)
+        output.seek(0)
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition":
+                    'attachment; filename="sample_engine_data.csv"'
+            }
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        logger.exception("Unable to generate sample CSV")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to generate sample CSV."
+        )

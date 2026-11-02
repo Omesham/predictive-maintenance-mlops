@@ -1,0 +1,32 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="Predictive Maintenance Platform error page.">
+
+    <title>{% block title %}Error{% endblock %} | Predictive Maintenance</title>
+
+    <link rel="stylesheet" href="{{ url_for('styles', path='/errors.css') }}">
+</head>
+
+<body>
+    <a href="#main-content" class="skip-link">
+        Skip to main content
+    </a>
+
+    <main id="main-content" class="error-container">
+        <div class="error-content">
+            {% block content %}{% endblock %}
+        </div>
+
+        <nav aria-label="Error recovery navigation">
+            <a href="/" class="home-link">
+                Return to Dashboard
+            </a>
+        </nav>
+    </main>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Maintenance Dashboard</title>
+    <link rel="stylesheet" href="/styles/dashboard.css">
+    <link rel="stylesheet" href="/styles/dashboard-charts.css">
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <header>
+        <h1>Predictive Maintenance Dashboard</h1>
+        <p>Monitor equipment health and predict remaining useful life.</p>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+        <section aria-labelledby="overview-heading">
+            <h2 id="overview-heading">Equipment Overview</h2>
+            <p id="chart-status" role="status" aria-live="polite">Upload engine data to see your prediction analytics.</p>
+            <div class="metric-grid" id="metrics-section" aria-label="Prediction summary" hidden>
+                <article class="metric-card"><h3>Records analyzed</h3><strong id="metric-total">—</strong></article>
+                <article class="metric-card"><h3>Average predicted RUL</h3><strong id="metric-average">—</strong><small>cycles</small></article>
+                <article class="metric-card"><h3>Lowest predicted RUL</h3><strong id="metric-minimum">—</strong><small>cycles</small></article>
+                <article class="metric-card"><h3>Maintenance alerts</h3><strong id="metric-alerts">—</strong><small>RUL ≤ 30 cycles (illustrative)</small></article>
+            </div>
+
+            <div class="chart-grid" id="charts-section" hidden>
+                <section class="chart-panel" aria-labelledby="rul-heading">
+                    <h3 id="rul-heading">Predicted RUL by Record</h3>
+                    <p>Shows up to 50 records with the lowest predicted RUL.</p>
+                    <div class="chart-wrap"><canvas id="rul-chart" role="img" aria-label="Bar chart of predicted remaining useful life by record"></canvas></div>
+                </section>
+                <section class="chart-panel" aria-labelledby="health-heading">
+                    <h3 id="health-heading">Predicted RUL Categories</h3>
+                    <p>Illustrative thresholds: Critical ≤ 30, Warning 31–80, Healthy &gt; 80 cycles.</p>
+                    <div class="chart-wrap"><canvas id="health-chart" role="img" aria-label="Doughnut chart of remaining useful life categories"></canvas></div>
+                </section>
+                <section class="chart-panel" aria-labelledby="sensor-heading">
+                    <h3 id="sensor-heading">Sensor Readings by Operating Cycle</h3>
+                    <label for="engine-select">Select Engine</label>
+                    <select id="engine-select"></select>
+                    <label for="sensor-select">Sensor</label>
+                    <select id="sensor-select" aria-label="Choose sensor for charts"></select>
+                    <p>Track sensor readings across operating cycles for the selected engine.</p>
+                    <div class="chart-wrap"><canvas id="sensor-chart" role="img" aria-label="Line chart of sensor readings across uploaded operating cycles"></canvas></div>
+                </section>
+                <section class="chart-panel" aria-labelledby="scatter-heading">
+                    <h3 id="scatter-heading">Sensor vs. Predicted RUL</h3>
+                    <p>Explore the relationship between the selected sensor and predicted remaining cycles.</p>
+                    <div class="chart-wrap"><canvas id="scatter-chart" role="img" aria-label="Scatter chart comparing sensor measurements with predicted remaining useful life"></canvas></div>
+                </section>
+            </div>
+        </section>
+
+        <section aria-labelledby="prediction-heading">
+            <h2 id="prediction-heading">ML Predictions</h2>
+            <p>Upload engine data to estimate remaining useful life.</p>
+            <form id="prediction-form" enctype="multipart/form-data">
+                <label for="csv-file">Select engine data (CSV)</label>
+                <input type="file" id="csv-file" name="file" accept=".csv,text/csv" required aria-describedby="upload-help">
+                
+<p id="upload-help">
+    Upload a CSV containing the 29 required model features.
+    Maximum file size: 5 MB. Maximum rows: 1,000.
+</p>
+
+<p>
+    New to the dashboard?
+    <a href="/api/sample-csv" download="sample_engine_data.csv">
+    Download Sample CSV
+</a>
+    to see the required columns.
+</p>
+
+<button type="submit" id="predict-button">
+    Generate Predictions
+</button>
+
+            </form>
+            <p id="upload-status" role="status" aria-live="polite"></p>
+            <a id="download-link" href="#" download="rul_predictions.csv" hidden>Download Prediction Results</a>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" defer></script>
+    <script src="/scripts/dashboard.js" defer></script>
+</body>
+</html>

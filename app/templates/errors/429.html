@@ -1,0 +1,15 @@
+
+{% extends "errors/base.html" %}
+
+{% block title %}Too Many Requests{% endblock %}
+
+{% block content %}
+    <p class="error-code" aria-label="Error 429">429</p>
+
+    <h1>Too Many Requests</h1>
+
+    <p>
+        You've made too many requests in a short period.
+        Please wait a moment before trying again.
+    </p>
+{% endblock %}

@@ -1,0 +1,16 @@
+
+{% extends "errors/base.html" %}
+
+{% block title %}Internal Server Error{% endblock %}
+
+{% block content %}
+    <p class="error-code" aria-label="Error 500">500</p>
+
+    <h1>Internal Server Error</h1>
+
+    <p>
+        Something went wrong while processing your request.
+        Please try again later. If the problem persists,
+        contact the administrator.
+    </p>
+{% endblock %}

@@ -1,4 +1,11 @@
 # Byte-compiled / optimized / DLL files
+.env
+.env.production
+# Ignore actual datasets, not DVC metadata.
+data/raw/
+data/processed/
+data/curated/
+venv/
 __pycache__/
 *.py[codz]
 *$py.class
