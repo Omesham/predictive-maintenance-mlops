@@ -4,6 +4,7 @@ from fastapi.responses import StreamingResponse
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from app.api.predict import get_model, predict_rul
+from app.services.drift import detect_data_drift
 
 router = APIRouter()
 logger = logging.getLogger("predictive_maintenance")
@@ -111,7 +112,12 @@ async def upload_csv(file: UploadFile = File(...)):
 
         # Run batch inference using the registered XGBoost model.
         predictions = predict_rul(data)
-
+        # Check uploaded sensor data for drift against training data.
+        try:
+            drift_report = detect_data_drift(data)            
+            logger.info("CSV data drift analysis completed: filename=%s", file.filename)
+        except Exception:
+            logger.exception("CSV data drift analysis failed")
         logger.info("CSV prediction completed: filename=%s, rows=%s", file.filename,len(data))
         
         # Add predictions to the original CSV so engine IDs,

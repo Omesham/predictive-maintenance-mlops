@@ -14,10 +14,10 @@ services:
   fastapi:
     build: .
     restart: unless-stopped
-    expose:
-      - "8000"
+    ports:
+      -  "127.0.0.1:8000:8000"
     environment:
-      APP_ENV: production
+      APP_ENV: ${APP_ENV:?Set APP_ENV}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
@@ -28,6 +28,8 @@ services:
       MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
     depends_on:
       - postgres
+    volumes:
+      - ./data/curated/train:/app/data/curated/train:ro
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -50,6 +52,8 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
+    depends_on:
+      - fastapi
 
   grafana:
     image: grafana/grafana:12.1.0
