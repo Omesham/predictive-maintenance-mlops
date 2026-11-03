@@ -1,5 +1,5 @@
 requests
-pandas
+pandas>=2.2,<3
 PyYAML
 pytest
 pytest-xdist
@@ -23,3 +23,5 @@ jinja2
 httpx
 bandit 
 pip-audit
+prometheus-fastapi-instrumentator
+evidently
