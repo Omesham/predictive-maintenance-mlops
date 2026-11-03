@@ -2,9 +2,9 @@ import logging
 from io import BytesIO, StringIO
 from fastapi.responses import StreamingResponse
 import pandas as pd
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from app.api.predict import get_model, predict_rul
-from app.services.drift import detect_data_drift
+from app.services.drift import store_and_monitor
 
 router = APIRouter()
 logger = logging.getLogger("predictive_maintenance")
@@ -15,7 +15,7 @@ MAX_ROWS = 1000
 
 
 @router.post("/upload")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     try:
         # Accept CSV files only.
         if not file.filename or not file.filename.lower().endswith(".csv"):
@@ -35,40 +35,29 @@ async def upload_csv(file: UploadFile = File(...)):
 
         if data.empty or len(data) > MAX_ROWS:
             raise HTTPException(status_code=422,detail="CSV must contain between 1 and 1,000 data rows.")
+        # Generate the dashboard cycle column when it is not provided.
+        if "time_cycles" not in data.columns and "time_in_cycles" in data.columns:
+            data["time_cycles"] = data["time_in_cycles"]
         # Require engine identity and operating cycle for dashboard analytics.
         required_columns = ["unit_number", "time_cycles"]
 
-        missing_columns = [
-            column for column in required_columns
-            if column not in data.columns
-        ]
+        missing_columns = [column for column in required_columns if column not in data.columns]
 
         if missing_columns:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "missing_columns": missing_columns
-                }
-            )
+            raise HTTPException(status_code=422, detail={"missing_columns": missing_columns})
 
         # Validate engine IDs and operating cycles.
         for column in required_columns:
             values = pd.to_numeric(data[column], errors="coerce")
 
             if values.isna().any() or (values <= 0).any() or (values % 1 != 0).any():
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Column '{column}' must contain positive whole numbers."
-                )
+                raise HTTPException(status_code=422, detail=f"Column '{column}' must contain positive whole numbers.")
 
             data[column] = values.astype("int64")
 
         # Prevent duplicate cycles for the same engine.
         if data.duplicated(subset=["unit_number", "time_cycles"]).any():
-            raise HTTPException(
-                status_code=422,
-                detail="Each engine must have unique operating cycles."
-            )
+            raise HTTPException(status_code=422, detail="Each engine must have unique operating cycles.")
         # Retrieve the input schema from the registered MLflow model.
         model = get_model()
         schema = model.metadata.get_input_schema()
@@ -112,12 +101,8 @@ async def upload_csv(file: UploadFile = File(...)):
 
         # Run batch inference using the registered XGBoost model.
         predictions = predict_rul(data)
-        # Check uploaded sensor data for drift against training data.
-        try:
-            drift_report = detect_data_drift(data)            
-            logger.info("CSV data drift analysis completed: filename=%s", file.filename)
-        except Exception:
-            logger.exception("CSV data drift analysis failed")
+        # Store sensor readings and analyze drift after returning predictions.
+        background_tasks.add_task(store_and_monitor, data.copy())
         logger.info("CSV prediction completed: filename=%s, rows=%s", file.filename,len(data))
         
         # Add predictions to the original CSV so engine IDs,
@@ -156,7 +141,7 @@ def download_sample_csv():
         model = get_model()
         schema = model.metadata.get_input_schema()
 
-        if schema is None or len(schema.inputs) != 29:
+        if schema is None:
             raise HTTPException(
                 status_code=503,
                 detail="Model input schema is unavailable."

@@ -40,7 +40,7 @@ def predict_rul(data: pd.DataFrame):
 
 # Define the input structure for prediction requests.
 class PredictionRequest(BaseModel):
-    features: list[float] = Field(min_length=29, max_length=29)
+    features: list[float] = Field(min_length=1)
 
 
 @router.post("/predict")
@@ -49,9 +49,12 @@ def predict(request: PredictionRequest):
     model = get_model()
     schema = model.metadata.get_input_schema()
 
-    if schema is None or len(schema.inputs) != 29:
-        logger.error("Model input schema is missing or unexpected")
+    if schema is None:
+        logger.error("Model input schema is unavailable")
         raise HTTPException(status_code=503, detail="Model input schema is unavailable.")
+
+    if len(request.features) != len(schema.inputs):
+        raise HTTPException(status_code=422, detail=f"Expected {len(schema.inputs)} features.")
 
     # Preserve the feature order expected by the trained model.
     feature_names = [column.name for column in schema.inputs]
